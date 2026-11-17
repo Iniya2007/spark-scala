@@ -1,0 +1,67 @@
+// Pure Scala version - NO Spark, NO downloads, NO extra dependencies.
+// Same logic as the Spark program: load -> clean -> classify -> alert.
+
+object WildfireSimple {
+
+  case class Reading(node: String, ts: String, temp: Double, hum: Option[Double],
+                     soil: Double, light: Int, lat: Double, lon: Double)
+
+  def main(args: Array[String]): Unit = {
+
+    val raw = List(
+      Reading("N001", "09:00", 29.5, Some(68),  55, 420, 10.9574, 78.0809),
+      Reading("N002", "09:00", 41.8, Some(35),  25, 780, 10.9601, 78.0852),
+      Reading("N003", "09:00", 48.2, Some(22),  17, 910, 10.9633, 78.0911),
+      Reading("N004", "09:00", 33.1, Some(55),  48, 500, 10.9688, 78.0765),
+      Reading("N005", "09:00", 36.4, None,      40, 610, 10.9712, 78.0790), // missing humidity
+      Reading("N003", "09:00", 48.2, Some(22),  17, 910, 10.9633, 78.0911), // duplicate
+      Reading("N006", "09:00", 44.0, Some(145), 20, 860, 10.9755, 78.0830), // invalid humidity
+      Reading("N007", "09:00", 38.9, Some(40),  28, 700, 10.9801, 78.0877),
+      Reading("N008", "09:00", 26.7, Some(72),  60, 350, 10.9822, 78.0702),
+      Reading("N009", "09:00", 46.5, Some(18),  12, 930, 10.9850, 78.0944),
+      Reading("N010", "09:00", 31.2, Some(60),  52, 450, 10.9890, 78.0731)
+    )
+
+    println("\n=== 1. RAW SENSOR DATA ===")
+    println(s"Records loaded: ${raw.size}")
+    printRow("Node_ID", "Temperature", "Humidity", "Soil_Moisture")
+    raw.foreach(r => printRow(r.node, r.temp.toString,
+      r.hum.map(h => h.toInt.toString).getOrElse("NULL"), r.soil.toInt.toString))
+
+    // 2. Preprocessing
+    val noMissing    = raw.filter(_.hum.isDefined)
+    val noDuplicates = noMissing.groupBy(r => (r.node, r.ts)).map(_._2.head).toList
+    val clean        = noDuplicates.filter(r => r.hum.get >= 0 && r.hum.get <= 100 &&
+                                                r.temp >= -40 && r.temp <= 80)
+                                   .sortBy(_.node)
+
+    println("\n=== 2. DATA PREPROCESSING ===")
+    println(s"After removing missing values : ${noMissing.size}")
+    println(s"After removing duplicates     : ${noDuplicates.size}")
+    println(s"After removing invalid values : ${clean.size}")
+
+    // 3. Risk classification (threshold-based)
+    def risk(r: Reading): String =
+      if (r.temp > 45 && r.soil < 30) "Critical"
+      else if (r.temp > 40 && r.soil < 30) "Warning"
+      else "Normal"
+
+    println("\n=== 3. RISK CLASSIFICATION (ALL CLEAN NODES) ===")
+    printRow("Node_ID", "Temperature", "Soil_Moisture", "Risk_Level")
+    clean.foreach(r => printRow(r.node, r.temp.toString, r.soil.toInt.toString, risk(r)))
+
+    println("\n=== 4. NODES PER RISK LEVEL ===")
+    clean.groupBy(risk).toList.sortBy(_._1).foreach { case (k, v) =>
+      println(f"$k%-10s ${v.size}")
+    }
+
+    println("\n=== 5. ALERTS & ROVER DISPATCH ===")
+    val critical = clean.filter(r => risk(r) == "Critical")
+    if (critical.isEmpty) println("No critical nodes.")
+    else critical.foreach(r =>
+      println(s"[ALERT] CRITICAL fire risk at ${r.node} (Lat ${r.lat}, Lon ${r.lon}) -> Rover dispatched for ground verification"))
+  }
+
+  def printRow(cols: String*): Unit =
+    println(cols.map(c => String.format("%-15s", c)).mkString(" "))
+}

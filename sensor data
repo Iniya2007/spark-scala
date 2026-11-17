@@ -1,0 +1,39 @@
+=== 1. RAW SENSOR DATA ===
+Records loaded: 11
+Node_ID         Temperature     Humidity        Soil_Moisture  
+N001            29.5            68              55             
+N002            41.8            35              25             
+N003            48.2            22              17             
+N004            33.1            55              48             
+N005            36.4            NULL            40             
+N003            48.2            22              17             
+N006            44.0            145             20             
+N007            38.9            40              28             
+N008            26.7            72              60             
+N009            46.5            18              12             
+N010            31.2            60              52             
+
+=== 2. DATA PREPROCESSING ===
+After removing missing values : 10
+After removing duplicates     : 9
+After removing invalid values : 8
+
+=== 3. RISK CLASSIFICATION (ALL CLEAN NODES) ===
+Node_ID         Temperature     Soil_Moisture   Risk_Level     
+N001            29.5            55              Normal         
+N002            41.8            25              Warning        
+N003            48.2            17              Critical       
+N004            33.1            48              Normal         
+N007            38.9            28              Normal         
+N008            26.7            60              Normal         
+N009            46.5            12              Critical       
+N010            31.2            52              Normal         
+
+=== 4. NODES PER RISK LEVEL ===
+Critical   2
+Normal     5
+Warning    1
+
+=== 5. ALERTS & ROVER DISPATCH ===
+[ALERT] CRITICAL fire risk at N003 (Lat 10.9633, Lon 78.0911) -> Rover dispatched for ground verification
+[ALERT] CRITICAL fire risk at N009 (Lat 10.985, Lon 78.0944) -> Rover dispatched for ground verification
